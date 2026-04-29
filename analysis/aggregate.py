@@ -27,7 +27,7 @@ RAW_TIME_DIR  = PROJECT_ROOT / "metrics" / "raw" / "time"
 AGG_DIR       = PROJECT_ROOT / "metrics" / "aggregated"
 
 # Logical payload sizes (pre-serialization application data in bytes)
-PAYLOAD_SIZES = [128, 512, 1024, 8192, 65536, 524288]
+PAYLOAD_SIZES = [32, 64, 128, 512, 1024, 8192, 65536, 524288]
 
 # Fraction of warm-up samples to discard from the front
 WARMUP_FRACTION = 0.10

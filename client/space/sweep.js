@@ -7,7 +7,7 @@
 // Environment variables:
 //   PROTOCOL      rest | grpc
 //   SERVER_IP     e.g. 192.168.1.2
-//   PAYLOAD_SIZE  target payload bytes (128, 512, 1024, 8192, 65536, 524288)
+//   PAYLOAD_SIZE  target payload bytes (32, 64, 128, 512, 1024, 8192, 65536, 524288)
 //
 // Usage:
 //   k6 run -e PROTOCOL=rest -e SERVER_IP=192.168.1.2 -e PAYLOAD_SIZE=1024 sweep.js

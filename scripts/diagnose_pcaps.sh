@@ -101,7 +101,7 @@ echo "LOGICAL PAYLOAD SIZES (what generator.js produces)"
 echo "=============================="
 # Quick check: what does the generator actually produce for each target size?
 node -e '
-const sizes = [128, 512, 1024, 8192, 65536, 524288];
+const sizes = [32, 64, 128, 512, 1024, 8192, 65536, 524288];
 // Replicate the flat generator logic
 for (const target of sizes) {
   const numKeys = 4;

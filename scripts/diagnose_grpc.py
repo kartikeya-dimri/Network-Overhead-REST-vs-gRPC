@@ -23,7 +23,7 @@ def tcp_sum(pcap, extra=""):
         return 0
     return sum(int(x) for x in out.split('\n') if x.strip().isdigit())
 
-sizes = [128, 512, 1024, 8192, 65536, 524288]
+sizes = [32, 64, 128, 512, 1024, 8192, 65536, 524288]
 
 print(f"{'size':>8} {'wire':>8} {'ALL_h2':>8} {'DATA':>8} {'HDRS':>8} {'SETT':>8} {'WINUP':>8} {'GOAWAY':>8} {'data_client':>12} {'data_server':>12}")
 print("-" * 120)

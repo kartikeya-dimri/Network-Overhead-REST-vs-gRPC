@@ -36,9 +36,14 @@ function jsonSize(obj) {
  * Few keys, each with a long random string value.
  */
 function generateFlat(targetBytes) {
-  const numKeys = 4;
-  // Estimate per-key overhead: {"key_0":"","key_1":"",...}  → ~12 chars/key
-  const overhead = 2 + numKeys * 12; // braces + key scaffolding
+  let numKeys = 4;
+  let overhead = 2 + numKeys * 12; // braces + key scaffolding
+  
+  while (overhead >= targetBytes && numKeys > 1) {
+    numKeys--;
+    overhead = 2 + numKeys * 12;
+  }
+  
   const valueLen = Math.max(1, Math.floor((targetBytes - overhead) / numKeys));
 
   const obj = {};
@@ -55,9 +60,14 @@ function generateFlat(targetBytes) {
  * Deeply nested object to stress recursive traversal.
  */
 function generateNested(targetBytes) {
-  const depth = 8;
-  // Each level adds: {"value":"...","child":  }  → ~22 chars overhead
-  const overhead = depth * 22;
+  let depth = 8;
+  let overhead = depth * 22;
+  
+  while (overhead >= targetBytes && depth > 1) {
+    depth--;
+    overhead = depth * 22;
+  }
+  
   const valueLen = Math.max(1, Math.floor((targetBytes - overhead) / depth));
 
   function buildLevel(d) {

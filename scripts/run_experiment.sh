@@ -25,10 +25,10 @@ SERVER_IP="${SERVER_IP:?Set SERVER_IP to the server machine's IP}"
 SPACE_ITERS=100
 
 # Payload sizes to sweep (bytes)
-PAYLOAD_SIZES=(128 512 1024 8192 65536 524288)
+PAYLOAD_SIZES=(32 64 128 512 1024 8192 65536 524288)
 
 # Structures for time experiment
-STRUCTURES=(flat nested)
+STRUCTURES=(flat nested wide array)
 
 # Protocols
 PROTOCOLS=(rest grpc)

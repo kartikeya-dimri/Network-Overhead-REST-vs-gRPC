@@ -27,7 +27,7 @@ Study and characterise network overheads across two dimensions: Space (protocol 
 I_space = Payload × Protocol
 I_time  = Payload × Structure × Protocol
 
-Payload    = {128B, 512B, 1KB, 8KB, 64KB, 512KB}
+Payload    = {32B, 64B, 128B, 512B, 1KB, 8KB, 64KB, 512KB}
 Structure  = {flat, nested, wide, array}
 Protocol   = {REST, gRPC}
 Concurrency = 1  (fixed, controlled)

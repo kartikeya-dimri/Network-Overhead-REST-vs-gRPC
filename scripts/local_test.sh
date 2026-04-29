@@ -21,8 +21,8 @@ K6_BIN="${K6_BIN:-k6}"
 IFACE="lo0"               # macOS loopback interface
 SPACE_ITERS=100           # run 100 iterations on a single connection to amortize handshake
 
-PAYLOAD_SIZES=(128 512 1024 8192 65536 524288)
-STRUCTURES=(flat nested)
+PAYLOAD_SIZES=(32 64 128 512 1024 8192 65536 524288)
+STRUCTURES=(flat nested wide array)
 
 log() { echo -e "\n\033[1;36m[local-test]\033[0m $(date '+%H:%M:%S') $*"; }
 
