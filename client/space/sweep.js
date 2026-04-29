@@ -22,6 +22,7 @@ import { generatePayload } from '../payloads/generator.js';
 const PROTOCOL     = __ENV.PROTOCOL     || 'rest';
 const SERVER_IP    = __ENV.SERVER_IP    || '127.0.0.1';
 const PAYLOAD_SIZE = parseInt(__ENV.PAYLOAD_SIZE || '1024', 10);
+const ITERATIONS   = parseInt(__ENV.ITERATIONS || '100', 10);
 
 const REST_URL  = `http://${SERVER_IP}:8080/echo`;
 const GRPC_ADDR = `${SERVER_IP}:50051`;
@@ -51,24 +52,28 @@ if (PROTOCOL === 'grpc') {
 // ---- main ----
 export default function () {
   if (PROTOCOL === 'rest') {
-    const res = http.post(REST_URL, jsonBody, {
-      headers: { 'Content-Type': 'application/json' },
-    });
-    check(res, {
-      'status 200': (r) => r.status === 200,
-    });
+    for (let i = 0; i < ITERATIONS; i++) {
+      const res = http.post(REST_URL, jsonBody, {
+        headers: { 'Content-Type': 'application/json' },
+      });
+      check(res, {
+        'status 200': (r) => r.status === 200,
+      });
+    }
   } else if (PROTOCOL === 'grpc') {
     grpcClient.connect(GRPC_ADDR, { plaintext: true });
 
     // k6 gRPC requires bytes fields as base64-encoded strings
     const payloadB64 = encoding.b64encode(jsonBody);
 
-    const resp = grpcClient.invoke('echo.EchoService/Echo', {
-      payload: payloadB64,
-    });
-    check(resp, {
-      'grpc status OK': (r) => r && r.status === grpc.StatusOK,
-    });
+    for (let i = 0; i < ITERATIONS; i++) {
+      const resp = grpcClient.invoke('echo.EchoService/Echo', {
+        payload: payloadB64,
+      });
+      check(resp, {
+        'grpc status OK': (r) => r && r.status === grpc.StatusOK,
+      });
+    }
     grpcClient.close();
   }
 }

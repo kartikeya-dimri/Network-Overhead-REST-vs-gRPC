@@ -19,6 +19,7 @@ ITERS=20                   # reduced iterations for quick local test
 SERVER_IP=127.0.0.1
 K6_BIN="${K6_BIN:-k6}"
 IFACE="lo0"               # macOS loopback interface
+SPACE_ITERS=100           # run 100 iterations on a single connection to amortize handshake
 
 PAYLOAD_SIZES=(128 512 1024 8192 65536 524288)
 STRUCTURES=(flat nested)
@@ -31,6 +32,15 @@ cleanup() {
   lsof -ti:50051 2>/dev/null | xargs kill -9 2>/dev/null || true
 }
 trap cleanup EXIT
+
+wait_for_port() {
+  local port=$1
+  for i in {1..50}; do
+    nc -z 127.0.0.1 "$port" 2>/dev/null && return 0
+    sleep 0.1
+  done
+  log "WARNING: Port $port did not open in time"
+}
 
 # Helper: extract CSV data rows from k6 structured log output.
 # k6 wraps console.log as:  level=info msg="0,123,456,579" source=console
@@ -62,7 +72,7 @@ run_space() {
   cleanup
   ./rest-server &
   REST_PID=$!
-  sleep 1
+  wait_for_port 8080
 
   rest_csv="${PROJECT_ROOT}/metrics/raw/space/rest.csv"
   echo "payload_size,wire_bytes,header_bytes,body_bytes" > "$rest_csv"
@@ -70,17 +80,23 @@ run_space() {
   for size in "${PAYLOAD_SIZES[@]}"; do
     log "  space: REST / ${size}B"
     pcap_file="${PROJECT_ROOT}/metrics/raw/pcaps/rest_${size}.pcap"
+    
+    local iters=100
+    if [ "$size" -ge 65536 ]; then
+      iters=10
+    fi
 
     # Start tcpdump on loopback
     tcpdump -i "$IFACE" port 8080 -w "$pcap_file" -U 2>/dev/null &
     TCPDUMP_PID=$!
     sleep 0.5
 
-    # Run k6 — single request
+    # Run k6 — single connection, N requests
     ${K6_BIN} run \
       -e "PROTOCOL=rest" \
       -e "SERVER_IP=${SERVER_IP}" \
       -e "PAYLOAD_SIZE=${size}" \
+      -e "ITERATIONS=${iters}" \
       client/space/sweep.js 2>&1 | tail -5
 
     sleep 0.5
@@ -88,14 +104,14 @@ run_space() {
     wait "$TCPDUMP_PID" 2>/dev/null || true
     sleep 0.5
 
-    # Analyse pcap
+    # Analyse pcap — divide by iters to get amortized per-request bytes
     wire_bytes=$(tshark -r "$pcap_file" -T fields -e tcp.len 2>/dev/null \
-      | awk '{ s += $1 } END { print s+0 }')
+      | awk -v i="${iters}" '{ s += $1 } END { printf "%.0f\n", s/i }')
 
     # HTTP/1.1: body = content-length, header = wire - body
     body_bytes=$(tshark -r "$pcap_file" -Y "http.content_length" \
       -T fields -e http.content_length 2>/dev/null \
-      | tr ',' '\n' | awk '{ s += $1 } END { print s+0 }')
+      | tr ',' '\n' | awk -v i="${iters}" '{ s += $1 } END { printf "%.0f\n", s/i }')
     header_bytes=$((wire_bytes - body_bytes))
 
     echo "${size},${wire_bytes},${header_bytes},${body_bytes}" >> "$rest_csv"
@@ -109,7 +125,7 @@ run_space() {
   # ---- gRPC space sweep ----
   ./grpc-server &
   GRPC_PID=$!
-  sleep 1
+  wait_for_port 50051
 
   grpc_csv="${PROJECT_ROOT}/metrics/raw/space/grpc.csv"
   echo "payload_size,wire_bytes,header_bytes,body_bytes" > "$grpc_csv"
@@ -117,6 +133,11 @@ run_space() {
   for size in "${PAYLOAD_SIZES[@]}"; do
     log "  space: gRPC / ${size}B"
     pcap_file="${PROJECT_ROOT}/metrics/raw/pcaps/grpc_${size}.pcap"
+    
+    local iters=100
+    if [ "$size" -ge 65536 ]; then
+      iters=10
+    fi
 
     tcpdump -i "$IFACE" port 50051 -w "$pcap_file" -U 2>/dev/null &
     TCPDUMP_PID=$!
@@ -126,6 +147,7 @@ run_space() {
       -e "PROTOCOL=grpc" \
       -e "SERVER_IP=${SERVER_IP}" \
       -e "PAYLOAD_SIZE=${size}" \
+      -e "ITERATIONS=${iters}" \
       client/space/sweep.js 2>&1 | tail -5
 
     sleep 0.5
@@ -137,11 +159,11 @@ run_space() {
     # -d forces tshark to decode port 50051 as HTTP/2
     wire_bytes=$(tshark -r "$pcap_file" -d tcp.port==50051,http2 \
       -T fields -e tcp.len 2>/dev/null \
-      | awk '{ s += $1 } END { print s+0 }')
+      | awk -v i="${iters}" '{ s += $1 } END { printf "%.0f\n", s/i }')
     # For gRPC: body = grpc.message_length, header = wire - body
     body_bytes=$(tshark -r "$pcap_file" -d tcp.port==50051,http2 \
       -T fields -e grpc.message_length 2>/dev/null \
-      | tr ',' '\n' | awk '{ s += $1 } END { print s+0 }')
+      | tr ',' '\n' | awk -v i="${iters}" '{ s += $1 } END { printf "%.0f\n", s/i }')
     header_bytes=$((wire_bytes - body_bytes))
 
     echo "${size},${wire_bytes},${header_bytes},${body_bytes}" >> "$grpc_csv"
@@ -163,7 +185,7 @@ run_time() {
   cleanup
   ./rest-server &
   REST_PID=$!
-  sleep 1
+  wait_for_port 8080
 
   for struct in "${STRUCTURES[@]}"; do
     csv_file="${PROJECT_ROOT}/metrics/raw/time/rest_${struct}.csv"
@@ -190,7 +212,7 @@ run_time() {
   # ---- gRPC time sweep ----
   ./grpc-server &
   GRPC_PID=$!
-  sleep 1
+  wait_for_port 50051
 
   for struct in "${STRUCTURES[@]}"; do
     csv_file="${PROJECT_ROOT}/metrics/raw/time/grpc_${struct}.csv"

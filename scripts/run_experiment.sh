@@ -22,6 +22,7 @@ PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
 K6_BIN="${K6_BIN:-k6}"
 SERVER_IP="${SERVER_IP:?Set SERVER_IP to the server machine's IP}"
+SPACE_ITERS=100
 
 # Payload sizes to sweep (bytes)
 PAYLOAD_SIZES=(128 512 1024 8192 65536 524288)
@@ -50,11 +51,12 @@ run_space() {
       # Start packet capture
       "${SCRIPT_DIR}/capture_network.sh" start "$proto" "$size" "$iface" "$SERVER_IP"
 
-      # Run k6 — single iteration
+      # Run k6 — N iterations on a single connection
       ${K6_BIN} run \
         -e "PROTOCOL=${proto}" \
         -e "SERVER_IP=${SERVER_IP}" \
         -e "PAYLOAD_SIZE=${size}" \
+        -e "ITERATIONS=${SPACE_ITERS}" \
         "${PROJECT_ROOT}/client/space/sweep.js" \
         2>&1 | head -20
 

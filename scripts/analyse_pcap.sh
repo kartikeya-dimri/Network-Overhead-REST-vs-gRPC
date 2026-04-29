@@ -28,12 +28,18 @@ analyse_one() {
   protocol="$(echo "$basename" | cut -d'_' -f1)"
   payload_size="$(echo "$basename" | cut -d'_' -f2)"
 
+  # Use 10 iterations for large payloads to prevent tshark state exhaustion
+  local iters=100
+  if [ "$payload_size" -ge 65536 ]; then
+    iters=10
+  fi
+
   local csv_file="${SPACE_DIR}/${protocol}.csv"
 
   # --- O1: total wire bytes (sum of TCP payload lengths) ---
   local wire_bytes
   wire_bytes=$(tshark -r "$pcap_file" -T fields -e tcp.len 2>/dev/null \
-    | awk '{ s += $1 } END { print s+0 }')
+    | awk -v i="$iters" '{ s += $1 } END { printf "%.0f\n", s/i }')
 
   # --- O2: header vs body bytes ---
   local header_bytes=0
@@ -43,13 +49,13 @@ analyse_one() {
     # For gRPC: body = grpc.message_length, header = wire - body
     body_bytes=$(tshark -r "$pcap_file" -d tcp.port==50051,http2 \
       -T fields -e grpc.message_length 2>/dev/null \
-      | tr ',' '\n' | awk '{ s += $1 } END { print s+0 }')
+      | tr ',' '\n' | awk -v i="$iters" '{ s += $1 } END { printf "%.0f\n", s/i }')
     header_bytes=$((wire_bytes - body_bytes))
   else
     # HTTP/1.1: use content-length for body, derive header from difference
     body_bytes=$(tshark -r "$pcap_file" -Y "http.content_length" \
       -T fields -e http.content_length 2>/dev/null \
-      | tr ',' '\n' | awk '{ s += $1 } END { print s+0 }')
+      | tr ',' '\n' | awk -v i="$iters" '{ s += $1 } END { printf "%.0f\n", s/i }')
 
     # header_bytes = wire_bytes - body_bytes (includes TCP overhead,
     # but for HTTP/1.1 on a single request this is a reasonable approximation)
