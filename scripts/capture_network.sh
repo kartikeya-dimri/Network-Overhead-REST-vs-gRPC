@@ -1,0 +1,51 @@
+#!/bin/bash
+# capture_network.sh — start/stop tcpdump for a single space experiment run
+#
+# Usage:
+#   ./capture_network.sh start <protocol> <payload_size> <interface> <server_ip>
+#   ./capture_network.sh stop
+#
+# Writes pcap to: metrics/raw/pcaps/<protocol>_<payload_size>.pcap
+
+set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+PCAP_DIR="${PROJECT_ROOT}/metrics/raw/pcaps"
+PID_FILE="/tmp/tcpdump_experiment.pid"
+
+mkdir -p "$PCAP_DIR"
+
+case "${1:-}" in
+  start)
+    PROTOCOL="${2:?usage: capture_network.sh start <protocol> <payload_size> <iface> <server_ip>}"
+    PAYLOAD_SIZE="${3:?}"
+    IFACE="${4:?}"
+    SERVER_IP="${5:?}"
+    OUTFILE="${PCAP_DIR}/${PROTOCOL}_${PAYLOAD_SIZE}.pcap"
+
+    echo "[capture] starting tcpdump on ${IFACE} for ${SERVER_IP} → ${OUTFILE}"
+    sudo tcpdump -i "$IFACE" host "$SERVER_IP" -w "$OUTFILE" -U &
+    echo $! > "$PID_FILE"
+    # Give tcpdump a moment to initialise
+    sleep 1
+    echo "[capture] tcpdump running (pid=$(cat "$PID_FILE"))"
+    ;;
+
+  stop)
+    if [ -f "$PID_FILE" ]; then
+      PID=$(cat "$PID_FILE")
+      echo "[capture] stopping tcpdump (pid=${PID})"
+      sudo kill "$PID" 2>/dev/null || true
+      # Wait for the process to finish writing
+      sleep 1
+      rm -f "$PID_FILE"
+    else
+      echo "[capture] no running capture found"
+    fi
+    ;;
+
+  *)
+    echo "Usage: $0 {start|stop} [args...]"
+    exit 1
+    ;;
+esac

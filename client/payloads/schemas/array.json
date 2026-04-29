@@ -1,0 +1,10 @@
+{
+  "description": "Array of homogeneous small objects. Tests collection serialization overhead.",
+  "structure": "array",
+  "example": [
+    { "id": 0, "val": "aaa..." },
+    { "id": 1, "val": "bbb..." },
+    { "id": 2, "val": "ccc..." }
+  ],
+  "notes": "generator.js creates an array of N identical-schema objects until JSON.stringify size ≈ target bytes."
+}

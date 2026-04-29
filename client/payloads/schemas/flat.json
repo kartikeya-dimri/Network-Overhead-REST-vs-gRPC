@@ -1,0 +1,10 @@
+{
+  "description": "Flat key-value object. All values sit at the top level.",
+  "structure": "flat",
+  "example": {
+    "key_0": "aaaaaa...",
+    "key_1": "bbbbbb...",
+    "key_N": "..."
+  },
+  "notes": "generator.js fills N keys with random alphanumeric strings until JSON.stringify size ≈ target bytes"
+}

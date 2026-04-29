@@ -1,0 +1,16 @@
+{
+  "description": "Deeply nested object. Each level has a single child object plus a filler value.",
+  "structure": "nested",
+  "example": {
+    "level_0": {
+      "value": "aaa...",
+      "child": {
+        "value": "bbb...",
+        "child": {
+          "value": "ccc..."
+        }
+      }
+    }
+  },
+  "notes": "generator.js creates depth-D nesting with filler strings at each level until JSON.stringify size ≈ target bytes"
+}

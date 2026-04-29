@@ -1,0 +1,11 @@
+{
+  "description": "Wide object with many short keys. Tests per-field overhead in serialization.",
+  "structure": "wide",
+  "example": {
+    "f0": "a",
+    "f1": "b",
+    "f2": "c",
+    "fN": "..."
+  },
+  "notes": "generator.js creates N keys with short (1-4 char) values until JSON.stringify size ≈ target bytes. Maximises key-count relative to value-size."
+}

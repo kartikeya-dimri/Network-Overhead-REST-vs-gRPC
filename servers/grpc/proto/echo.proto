@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package echo;
+
+option go_package = "github.com/kartikeya-dimri/network-overhead/servers/grpc/proto";
+
+// EchoService echoes back whatever payload it receives.
+// Used to measure network overhead (space) and serialization cost (time).
+service EchoService {
+  rpc Echo (EchoRequest) returns (EchoResponse);
+}
+
+message EchoRequest {
+  bytes payload = 1;
+}
+
+message EchoResponse {
+  bytes payload   = 1;
+  int64 server_ns = 2;  // deser_server + ser_server in nanoseconds
+}
