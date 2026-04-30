@@ -73,7 +73,7 @@ run_time() {
           -e "STRUCTURE=${struct}" \
           "${PROJECT_ROOT}/client/time/sweep.js" \
           2>&1 \
-          | sed -n 's/.*msg="\([0-9][0-9]*,.*\)".*/\1/p' >> "$csv_file" || true
+          | sed -n "s/.*msg=\"\\([0-9][0-9]*,.*\\)\".*/\\1/p" >> "$csv_file" || true
       done
 
       rows=$(wc -l < "$csv_file")
