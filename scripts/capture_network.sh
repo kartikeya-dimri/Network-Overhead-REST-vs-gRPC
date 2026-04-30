@@ -35,9 +35,11 @@ case "${1:-}" in
     if [ -f "$PID_FILE" ]; then
       PID=$(cat "$PID_FILE")
       echo "[capture] stopping tcpdump (pid=${PID})"
-      sudo kill "$PID" 2>/dev/null || true
+      # Use SIGINT (2) to allow tcpdump to flush buffers and exit cleanly
+      sudo kill -2 "$PID" 2>/dev/null || true
       # Wait for the process to finish writing
-      sleep 1
+      sleep 2
+      sync
       rm -f "$PID_FILE"
       
       # Ensure the pcap file is readable by the current user (it might be owned by root)

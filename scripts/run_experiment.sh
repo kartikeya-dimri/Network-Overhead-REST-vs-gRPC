@@ -41,7 +41,7 @@ run_space() {
         -e "PAYLOAD_SIZE=${size}" \
         -e "ITERATIONS=${SPACE_ITERS}" \
         "${PROJECT_ROOT}/client/space/sweep.js" \
-        2>&1 | head -20 || true
+        2>&1 | (head -n 20; cat > /dev/null) || true
 
       "${SCRIPT_DIR}/capture_network.sh" stop
 
