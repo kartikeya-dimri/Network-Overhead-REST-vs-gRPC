@@ -28,11 +28,8 @@ analyse_one() {
   protocol="$(echo "$basename" | cut -d'_' -f1)"
   payload_size="$(echo "$basename" | cut -d'_' -f2)"
 
-  # Use 10 iterations for large payloads to prevent tshark state exhaustion
+  # Use the same iteration count as the orchestrator (100)
   local iters=100
-  if [ "$payload_size" -ge 65536 ]; then
-    iters=10
-  fi
 
   local csv_file="${SPACE_DIR}/${protocol}.csv"
 

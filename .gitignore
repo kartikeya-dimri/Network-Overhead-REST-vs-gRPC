@@ -1,0 +1,8 @@
+*.pcap
+metrics/raw/pcaps/
+metrics/raw/space/
+metrics/raw/time/
+metrics/aggregated/
+results/*.png
+node_modules/
+.DS_Store
