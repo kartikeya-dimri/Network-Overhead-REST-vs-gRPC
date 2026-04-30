@@ -97,7 +97,8 @@ run_time() {
           | sed -n 's/.*msg="\([0-9][0-9]*,.*\)".*/\1/p' >> "$csv_file"
       done
 
-      log "  → ${csv_file} ($(wc -l < "$csv_file") rows)"
+      rows=$(wc -l < "$csv_file")
+      log "  → ${csv_file} (${rows} rows)"
     done
   done
 

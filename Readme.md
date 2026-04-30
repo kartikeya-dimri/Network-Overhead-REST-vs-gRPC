@@ -14,6 +14,33 @@ I have the following setup:
 * On the other the server runs - only one at a time for a given protocol.
 * So separate runs for REST and gRPC
 
+**1.1 Ethernet Specs (as reported by the machines)**
+
+NICs (lspci):
+```
+03:00.0 Ethernet controller: Realtek RTL8111/8168/8411 PCI Express Gigabit Ethernet Controller [10ec:8161] (rev 15)
+04:00.0 Ethernet controller: Realtek RTL8111/8168/8211/8411 PCI Express Gigabit Ethernet Controller [10ec:8168] (rev 15)
+```
+
+Driver (lspci -k):
+```
+Kernel driver in use: r8169
+Kernel modules: r8169
+```
+
+Link (ethtool enp3s0):
+```
+Speed: 1000Mb/s
+Duplex: Full
+Link detected: yes
+```
+
+Interface + IPs (ip addr show dev enp3s0):
+```
+Client: 10.10.10.1/30
+Server: 10.10.10.2/30
+```
+
 ---
 
 **2. Aim**
