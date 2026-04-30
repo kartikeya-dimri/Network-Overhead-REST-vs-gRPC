@@ -10,6 +10,14 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
+# Prime sudo credentials and keep them alive
+echo "[experiment] Priming sudo credentials..."
+sudo -v
+# Keep-alive: update existing sudo time stamp until the script has finished
+while true; do sudo -n true; sleep 60; kill -0 "$$" || exit; done 2>/dev/null &
+KEEPALIVE_PID=$!
+trap 'kill $KEEPALIVE_PID' EXIT
+
 K6_BIN="${K6_BIN:-k6}"
 SERVER_IP="${SERVER_IP:?Set SERVER_IP to the server machines IP}"
 SPACE_ITERS=100
