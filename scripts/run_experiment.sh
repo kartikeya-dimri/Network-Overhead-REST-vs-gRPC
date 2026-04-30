@@ -11,7 +11,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
 K6_BIN="${K6_BIN:-k6}"
-SERVER_IP="${SERVER_IP:?Set SERVER_IP to the server machine's IP}"
+SERVER_IP="${SERVER_IP:?Set SERVER_IP to the server machines IP}"
 SPACE_ITERS=100
 
 PAYLOAD_SIZES=(32 64 128 512 1024 8192 65536 524288)
