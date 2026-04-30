@@ -39,6 +39,12 @@ case "${1:-}" in
       # Wait for the process to finish writing
       sleep 1
       rm -f "$PID_FILE"
+      
+      # Ensure the pcap file is readable by the current user (it might be owned by root)
+      # We find the file that was just created. We need the protocol and size from start.
+      # For simplicity, we can just chown everything in the pcap dir or just the relevant one.
+      # Actually, capture_network stop doesn't know the filename easily unless we store it.
+      sudo chown "$(id -u):$(id -g)" "${PCAP_DIR}"/*.pcap || true
     else
       echo "[capture] no running capture found"
     fi
