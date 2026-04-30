@@ -23,8 +23,8 @@ case "${1:-}" in
     SERVER_IP="${5:?}"
     OUTFILE="${PCAP_DIR}/${PROTOCOL}_${PAYLOAD_SIZE}.pcap"
 
-    echo "[capture] starting tcpdump on ${IFACE} for ${SERVER_IP} (ports 8080,50051) → ${OUTFILE}"
-    sudo tcpdump -i "$IFACE" host "$SERVER_IP" and \( port 8080 or port 50051 \) -w "$OUTFILE" -U &
+    echo "[capture] starting tcpdump on ${IFACE} for traffic TO ${SERVER_IP} (ports 8080,50051) → ${OUTFILE}"
+    sudo tcpdump -i "$IFACE" dst host "$SERVER_IP" and \( port 8080 or port 50051 \) -w "$OUTFILE" -U &
     echo $! > "$PID_FILE"
     # Give tcpdump a moment to initialise
     sleep 1
