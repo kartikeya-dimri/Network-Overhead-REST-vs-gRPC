@@ -1,11 +1,16 @@
 {
-  "description": "Wide object with many short keys. Tests per-field overhead in serialization.",
+  "description": "Wide object. Many fields with realistic long key names (12+ chars) and small values (4 chars). Maximizes field_count / total_bytes.",
   "structure": "wide",
-  "example": {
-    "f0": "a",
-    "f1": "b",
-    "f2": "c",
-    "fN": "..."
+  "parameters": {
+    "field_count": "target / 4 (many)",
+    "value_size": "4 chars (fixed)",
+    "key_size": "12+ chars (field_name_N)"
   },
-  "notes": "generator.js creates N keys with short (1-4 char) values until JSON.stringify size ≈ target bytes. Maximises key-count relative to value-size."
+  "example": {
+    "field_name_0": "aBcD",
+    "field_name_1": "eFgH",
+    "field_name_2": "iJkL",
+    "field_name_N": "..."
+  },
+  "notes": "Realistic long keys (not tiny 'f0' stubs) amplify JSON key repetition cost. JSON includes every key name in the wire format; protobuf uses 1-2 byte varint field tags instead."
 }

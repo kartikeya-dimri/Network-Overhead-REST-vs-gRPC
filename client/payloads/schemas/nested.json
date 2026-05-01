@@ -1,16 +1,19 @@
 {
-  "description": "Deeply nested object. Each level has a single child object plus a filler value.",
+  "description": "Branching tree (factor=3). Each node: { value, children[] }. Stresses recursive traversal.",
   "structure": "nested",
-  "example": {
-    "level_0": {
-      "value": "aaa...",
-      "child": {
-        "value": "bbb...",
-        "child": {
-          "value": "ccc..."
-        }
-      }
-    }
+  "parameters": {
+    "branching_factor": 3,
+    "node_count": "target / 4 (exact, scales linearly)",
+    "value_size": "4 chars (fixed per node)",
+    "key_overhead": "\"value\" + \"children\" key names + braces at every node"
   },
-  "notes": "generator.js creates depth-D nesting with filler strings at each level until JSON.stringify size ≈ target bytes"
+  "example": {
+    "value": "abcdefgh",
+    "children": [
+      { "value": "ijklmnop", "children": ["..."] },
+      { "value": "qrstuvwx", "children": ["..."] },
+      { "value": "yzABCDEF", "children": ["..."] }
+    ]
+  },
+  "notes": "Uses branching > 1 (not a single-child chain) so overhead comes from tree structure, not just depth. Each level contributes similar value size. JSON adds braces + key names at every branch."
 }

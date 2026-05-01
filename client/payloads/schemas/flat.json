@@ -1,10 +1,16 @@
 {
-  "description": "Flat key-value object. All values sit at the top level.",
+  "description": "Flat key-value object. 4 keys with long random values. Baseline: minimal structural overhead.",
   "structure": "flat",
-  "example": {
-    "key_0": "aaaaaa...",
-    "key_1": "bbbbbb...",
-    "key_N": "..."
+  "parameters": {
+    "field_count": 4,
+    "value_size": "target / 4",
+    "key_size": "~5 chars (key_0..key_3)"
   },
-  "notes": "generator.js fills N keys with random alphanumeric strings until JSON.stringify size ≈ target bytes"
+  "example": {
+    "key_0": "aLongRandomStr...",
+    "key_1": "anotherLongStr...",
+    "key_2": "...",
+    "key_3": "..."
+  },
+  "notes": "Logical size = sum of 4 value lengths. Few keys mean JSON key overhead is minimal — this is the baseline where encoding differences are smallest."
 }

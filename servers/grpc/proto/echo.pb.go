@@ -21,16 +21,190 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// Entry: key-value pair for flat and wide structures.
+// Flat:  few entries with long values.
+// Wide:  many entries with short values and long keys.
+type Entry struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Key           string                 `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
+	Value         string                 `protobuf:"bytes,2,opt,name=value,proto3" json:"value,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Entry) Reset() {
+	*x = Entry{}
+	mi := &file_servers_grpc_proto_echo_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Entry) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Entry) ProtoMessage() {}
+
+func (x *Entry) ProtoReflect() protoreflect.Message {
+	mi := &file_servers_grpc_proto_echo_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Entry.ProtoReflect.Descriptor instead.
+func (*Entry) Descriptor() ([]byte, []int) {
+	return file_servers_grpc_proto_echo_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *Entry) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
+}
+
+func (x *Entry) GetValue() string {
+	if x != nil {
+		return x.Value
+	}
+	return ""
+}
+
+// TreeNode: recursive message for nested tree structures (branching factor=3).
+// Each node has a value string and zero or more children.
+// Protobuf encodes children as nested submessages with 1-2 byte field tags,
+// vs JSON which repeats "value","children" key names + braces at every node.
+type TreeNode struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Value         string                 `protobuf:"bytes,1,opt,name=value,proto3" json:"value,omitempty"`
+	Children      []*TreeNode            `protobuf:"bytes,2,rep,name=children,proto3" json:"children,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TreeNode) Reset() {
+	*x = TreeNode{}
+	mi := &file_servers_grpc_proto_echo_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TreeNode) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TreeNode) ProtoMessage() {}
+
+func (x *TreeNode) ProtoReflect() protoreflect.Message {
+	mi := &file_servers_grpc_proto_echo_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TreeNode.ProtoReflect.Descriptor instead.
+func (*TreeNode) Descriptor() ([]byte, []int) {
+	return file_servers_grpc_proto_echo_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *TreeNode) GetValue() string {
+	if x != nil {
+		return x.Value
+	}
+	return ""
+}
+
+func (x *TreeNode) GetChildren() []*TreeNode {
+	if x != nil {
+		return x.Children
+	}
+	return nil
+}
+
+// ArrayElement: typed element for homogeneous array structures.
+// Protobuf encodes each element with compact varint field tags,
+// vs JSON which repeats "idx","val" key names per element.
+type ArrayElement struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Idx           int32                  `protobuf:"varint,1,opt,name=idx,proto3" json:"idx,omitempty"`
+	Val           string                 `protobuf:"bytes,2,opt,name=val,proto3" json:"val,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ArrayElement) Reset() {
+	*x = ArrayElement{}
+	mi := &file_servers_grpc_proto_echo_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ArrayElement) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ArrayElement) ProtoMessage() {}
+
+func (x *ArrayElement) ProtoReflect() protoreflect.Message {
+	mi := &file_servers_grpc_proto_echo_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ArrayElement.ProtoReflect.Descriptor instead.
+func (*ArrayElement) Descriptor() ([]byte, []int) {
+	return file_servers_grpc_proto_echo_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *ArrayElement) GetIdx() int32 {
+	if x != nil {
+		return x.Idx
+	}
+	return 0
+}
+
+func (x *ArrayElement) GetVal() string {
+	if x != nil {
+		return x.Val
+	}
+	return ""
+}
+
+// EchoRequest carries a structured payload.
+// Use exactly one field based on the structure type:
+//
+//	entries  → flat, wide
+//	tree     → nested
+//	elements → array
 type EchoRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Payload       []byte                 `protobuf:"bytes,1,opt,name=payload,proto3" json:"payload,omitempty"`
+	Entries       []*Entry               `protobuf:"bytes,1,rep,name=entries,proto3" json:"entries,omitempty"`
+	Tree          *TreeNode              `protobuf:"bytes,2,opt,name=tree,proto3" json:"tree,omitempty"`
+	Elements      []*ArrayElement        `protobuf:"bytes,3,rep,name=elements,proto3" json:"elements,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *EchoRequest) Reset() {
 	*x = EchoRequest{}
-	mi := &file_servers_grpc_proto_echo_proto_msgTypes[0]
+	mi := &file_servers_grpc_proto_echo_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -42,7 +216,7 @@ func (x *EchoRequest) String() string {
 func (*EchoRequest) ProtoMessage() {}
 
 func (x *EchoRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_servers_grpc_proto_echo_proto_msgTypes[0]
+	mi := &file_servers_grpc_proto_echo_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -55,27 +229,44 @@ func (x *EchoRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EchoRequest.ProtoReflect.Descriptor instead.
 func (*EchoRequest) Descriptor() ([]byte, []int) {
-	return file_servers_grpc_proto_echo_proto_rawDescGZIP(), []int{0}
+	return file_servers_grpc_proto_echo_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *EchoRequest) GetPayload() []byte {
+func (x *EchoRequest) GetEntries() []*Entry {
 	if x != nil {
-		return x.Payload
+		return x.Entries
 	}
 	return nil
 }
 
+func (x *EchoRequest) GetTree() *TreeNode {
+	if x != nil {
+		return x.Tree
+	}
+	return nil
+}
+
+func (x *EchoRequest) GetElements() []*ArrayElement {
+	if x != nil {
+		return x.Elements
+	}
+	return nil
+}
+
+// EchoResponse echoes the structured payload back, plus server timing.
 type EchoResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Payload       []byte                 `protobuf:"bytes,1,opt,name=payload,proto3" json:"payload,omitempty"`
-	ServerNs      int64                  `protobuf:"varint,2,opt,name=server_ns,json=serverNs,proto3" json:"server_ns,omitempty"` // deser_server + ser_server in nanoseconds
+	Entries       []*Entry               `protobuf:"bytes,1,rep,name=entries,proto3" json:"entries,omitempty"`
+	Tree          *TreeNode              `protobuf:"bytes,2,opt,name=tree,proto3" json:"tree,omitempty"`
+	Elements      []*ArrayElement        `protobuf:"bytes,3,rep,name=elements,proto3" json:"elements,omitempty"`
+	ServerNs      int64                  `protobuf:"varint,4,opt,name=server_ns,json=serverNs,proto3" json:"server_ns,omitempty"` // deser_server + ser_server in nanoseconds
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *EchoResponse) Reset() {
 	*x = EchoResponse{}
-	mi := &file_servers_grpc_proto_echo_proto_msgTypes[1]
+	mi := &file_servers_grpc_proto_echo_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -87,7 +278,7 @@ func (x *EchoResponse) String() string {
 func (*EchoResponse) ProtoMessage() {}
 
 func (x *EchoResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_servers_grpc_proto_echo_proto_msgTypes[1]
+	mi := &file_servers_grpc_proto_echo_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -100,12 +291,26 @@ func (x *EchoResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EchoResponse.ProtoReflect.Descriptor instead.
 func (*EchoResponse) Descriptor() ([]byte, []int) {
-	return file_servers_grpc_proto_echo_proto_rawDescGZIP(), []int{1}
+	return file_servers_grpc_proto_echo_proto_rawDescGZIP(), []int{4}
 }
 
-func (x *EchoResponse) GetPayload() []byte {
+func (x *EchoResponse) GetEntries() []*Entry {
 	if x != nil {
-		return x.Payload
+		return x.Entries
+	}
+	return nil
+}
+
+func (x *EchoResponse) GetTree() *TreeNode {
+	if x != nil {
+		return x.Tree
+	}
+	return nil
+}
+
+func (x *EchoResponse) GetElements() []*ArrayElement {
+	if x != nil {
+		return x.Elements
 	}
 	return nil
 }
@@ -121,12 +326,25 @@ var File_servers_grpc_proto_echo_proto protoreflect.FileDescriptor
 
 const file_servers_grpc_proto_echo_proto_rawDesc = "" +
 	"\n" +
-	"\x1dservers/grpc/proto/echo.proto\x12\x04echo\"'\n" +
-	"\vEchoRequest\x12\x18\n" +
-	"\apayload\x18\x01 \x01(\fR\apayload\"E\n" +
-	"\fEchoResponse\x12\x18\n" +
-	"\apayload\x18\x01 \x01(\fR\apayload\x12\x1b\n" +
-	"\tserver_ns\x18\x02 \x01(\x03R\bserverNs2<\n" +
+	"\x1dservers/grpc/proto/echo.proto\x12\x04echo\"/\n" +
+	"\x05Entry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value\"L\n" +
+	"\bTreeNode\x12\x14\n" +
+	"\x05value\x18\x01 \x01(\tR\x05value\x12*\n" +
+	"\bchildren\x18\x02 \x03(\v2\x0e.echo.TreeNodeR\bchildren\"2\n" +
+	"\fArrayElement\x12\x10\n" +
+	"\x03idx\x18\x01 \x01(\x05R\x03idx\x12\x10\n" +
+	"\x03val\x18\x02 \x01(\tR\x03val\"\x88\x01\n" +
+	"\vEchoRequest\x12%\n" +
+	"\aentries\x18\x01 \x03(\v2\v.echo.EntryR\aentries\x12\"\n" +
+	"\x04tree\x18\x02 \x01(\v2\x0e.echo.TreeNodeR\x04tree\x12.\n" +
+	"\belements\x18\x03 \x03(\v2\x12.echo.ArrayElementR\belements\"\xa6\x01\n" +
+	"\fEchoResponse\x12%\n" +
+	"\aentries\x18\x01 \x03(\v2\v.echo.EntryR\aentries\x12\"\n" +
+	"\x04tree\x18\x02 \x01(\v2\x0e.echo.TreeNodeR\x04tree\x12.\n" +
+	"\belements\x18\x03 \x03(\v2\x12.echo.ArrayElementR\belements\x12\x1b\n" +
+	"\tserver_ns\x18\x04 \x01(\x03R\bserverNs2<\n" +
 	"\vEchoService\x12-\n" +
 	"\x04Echo\x12\x11.echo.EchoRequest\x1a\x12.echo.EchoResponseB@Z>github.com/kartikeya-dimri/network-overhead/servers/grpc/protob\x06proto3"
 
@@ -142,19 +360,29 @@ func file_servers_grpc_proto_echo_proto_rawDescGZIP() []byte {
 	return file_servers_grpc_proto_echo_proto_rawDescData
 }
 
-var file_servers_grpc_proto_echo_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_servers_grpc_proto_echo_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_servers_grpc_proto_echo_proto_goTypes = []any{
-	(*EchoRequest)(nil),  // 0: echo.EchoRequest
-	(*EchoResponse)(nil), // 1: echo.EchoResponse
+	(*Entry)(nil),        // 0: echo.Entry
+	(*TreeNode)(nil),     // 1: echo.TreeNode
+	(*ArrayElement)(nil), // 2: echo.ArrayElement
+	(*EchoRequest)(nil),  // 3: echo.EchoRequest
+	(*EchoResponse)(nil), // 4: echo.EchoResponse
 }
 var file_servers_grpc_proto_echo_proto_depIdxs = []int32{
-	0, // 0: echo.EchoService.Echo:input_type -> echo.EchoRequest
-	1, // 1: echo.EchoService.Echo:output_type -> echo.EchoResponse
-	1, // [1:2] is the sub-list for method output_type
-	0, // [0:1] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	1, // 0: echo.TreeNode.children:type_name -> echo.TreeNode
+	0, // 1: echo.EchoRequest.entries:type_name -> echo.Entry
+	1, // 2: echo.EchoRequest.tree:type_name -> echo.TreeNode
+	2, // 3: echo.EchoRequest.elements:type_name -> echo.ArrayElement
+	0, // 4: echo.EchoResponse.entries:type_name -> echo.Entry
+	1, // 5: echo.EchoResponse.tree:type_name -> echo.TreeNode
+	2, // 6: echo.EchoResponse.elements:type_name -> echo.ArrayElement
+	3, // 7: echo.EchoService.Echo:input_type -> echo.EchoRequest
+	4, // 8: echo.EchoService.Echo:output_type -> echo.EchoResponse
+	8, // [8:9] is the sub-list for method output_type
+	7, // [7:8] is the sub-list for method input_type
+	7, // [7:7] is the sub-list for extension type_name
+	7, // [7:7] is the sub-list for extension extendee
+	0, // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_servers_grpc_proto_echo_proto_init() }
@@ -168,7 +396,7 @@ func file_servers_grpc_proto_echo_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_servers_grpc_proto_echo_proto_rawDesc), len(file_servers_grpc_proto_echo_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   2,
+			NumMessages:   5,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -9,6 +9,8 @@ metrics/aggregated/:
   header_body_ratio.csv   — O2 = wire_bytes / encoded_body_bytes
   ser_deser_overhead.csv  — O3 = mean(total_ns), warm-up trimmed
 
+Input space:  Payload Size × Structure × Protocol
+
 Usage:
   python3 aggregate.py                     # process everything
   python3 aggregate.py --space-only        # only O1 + O2
@@ -27,7 +29,8 @@ RAW_TIME_DIR  = PROJECT_ROOT / "metrics" / "raw" / "time"
 AGG_DIR       = PROJECT_ROOT / "metrics" / "aggregated"
 
 # Logical payload sizes (pre-serialization application data in bytes)
-PAYLOAD_SIZES = [32, 64, 128, 512, 1024, 8192, 65536, 524288]
+PAYLOAD_SIZES = [32, 64, 128, 512, 1024, 8192]
+STRUCTURES = ["flat", "nested", "wide", "array"]
 
 # Fraction of warm-up samples to discard from the front
 WARMUP_FRACTION = 0.10
@@ -48,44 +51,57 @@ def aggregate_space():
     Compute O1 (overhead ratio) and O2 (header+body : body ratio)
     from raw space CSVs.
 
-    Raw CSV schema: payload_size,wire_bytes,header_bytes,body_bytes
+    Raw CSV schema: payload_size,structure,wire_bytes,header_bytes,body_bytes
+    Files:          rest_{structure}.csv, grpc_{structure}.csv
     """
-    o1_rows = []  # payload_size, rest_O1, grpc_O1
-    o2_rows = []  # payload_size, rest_O2, grpc_O2
+    o1_rows = []  # payload_size, structure, rest_O1, grpc_O1
+    o2_rows = []  # payload_size, structure, rest_O2, grpc_O2
 
-    # Load raw data keyed by (protocol, payload_size)
-    data = {}  # (protocol, payload_size_int) → dict
+    # Load raw data keyed by (protocol, structure, payload_size)
+    data = {}  # (protocol, structure, payload_size_int) → dict
     for proto in ("rest", "grpc"):
-        csv_path = RAW_SPACE_DIR / f"{proto}.csv"
-        if not csv_path.exists():
-            print(f"[warn] {csv_path} not found, skipping {proto}", file=sys.stderr)
-            continue
-        for row in read_csv(csv_path):
-            key = (proto, int(row["payload_size"]))
-            data[key] = {
-                "wire_bytes":   int(row["wire_bytes"]),
-                "header_bytes": int(row["header_bytes"]),
-                "body_bytes":   int(row["body_bytes"]),
-            }
+        for struct in STRUCTURES:
+            csv_path = RAW_SPACE_DIR / f"{proto}_{struct}.csv"
+            if not csv_path.exists():
+                print(f"[warn] {csv_path} not found, skipping {proto}/{struct}", file=sys.stderr)
+                continue
+            for row in read_csv(csv_path):
+                key = (proto, struct, int(row["payload_size"]))
+                data[key] = {
+                    "wire_bytes":   int(row["wire_bytes"]),
+                    "header_bytes": int(row["header_bytes"]),
+                    "body_bytes":   int(row["body_bytes"]),
+                }
 
-    for size in PAYLOAD_SIZES:
-        rest = data.get(("rest", size))
-        grpc = data.get(("grpc", size))
+    for struct in STRUCTURES:
+        for size in PAYLOAD_SIZES:
+            rest = data.get(("rest", struct, size))
+            grpc = data.get(("grpc", struct, size))
 
-        # O1 = wire_bytes / logical_payload_bytes
-        rest_o1 = rest["wire_bytes"] / size if rest else ""
-        grpc_o1 = grpc["wire_bytes"] / size if grpc else ""
-        o1_rows.append({"payload_size": size, "rest_O1": rest_o1, "grpc_O1": grpc_o1})
+            # O1 = wire_bytes / logical_payload_bytes
+            rest_o1 = rest["wire_bytes"] / size if rest else ""
+            grpc_o1 = grpc["wire_bytes"] / size if grpc else ""
+            o1_rows.append({
+                "payload_size": size,
+                "structure": struct,
+                "rest_O1": rest_o1,
+                "grpc_O1": grpc_o1,
+            })
 
-        # O2 = wire_bytes / encoded_body_bytes  (= (header+body) / body)
-        rest_o2 = rest["wire_bytes"] / rest["body_bytes"] if rest and rest["body_bytes"] else ""
-        grpc_o2 = grpc["wire_bytes"] / grpc["body_bytes"] if grpc and grpc["body_bytes"] else ""
-        o2_rows.append({"payload_size": size, "rest_O2": rest_o2, "grpc_O2": grpc_o2})
+            # O2 = wire_bytes / encoded_body_bytes  (= (header+body) / body)
+            rest_o2 = rest["wire_bytes"] / rest["body_bytes"] if rest and rest["body_bytes"] else ""
+            grpc_o2 = grpc["wire_bytes"] / grpc["body_bytes"] if grpc and grpc["body_bytes"] else ""
+            o2_rows.append({
+                "payload_size": size,
+                "structure": struct,
+                "rest_O2": rest_o2,
+                "grpc_O2": grpc_o2,
+            })
 
     # Write O1
     o1_path = AGG_DIR / "overhead_ratio.csv"
     with open(o1_path, "w", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=["payload_size", "rest_O1", "grpc_O1"])
+        w = csv.DictWriter(f, fieldnames=["payload_size", "structure", "rest_O1", "grpc_O1"])
         w.writeheader()
         w.writerows(o1_rows)
     print(f"[aggregate] O1 → {o1_path} ({len(o1_rows)} rows)")
@@ -93,7 +109,7 @@ def aggregate_space():
     # Write O2
     o2_path = AGG_DIR / "header_body_ratio.csv"
     with open(o2_path, "w", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=["payload_size", "rest_O2", "grpc_O2"])
+        w = csv.DictWriter(f, fieldnames=["payload_size", "structure", "rest_O2", "grpc_O2"])
         w.writeheader()
         w.writerows(o2_rows)
     print(f"[aggregate] O2 → {o2_path} ({len(o2_rows)} rows)")
@@ -107,13 +123,11 @@ def aggregate_time():
     Raw CSV schema: iteration,client_ns,server_ns,total_ns
     Aggregated schema: payload_size,structure,rest_O3_mean_us,grpc_O3_mean_us
     """
-    structures = ["flat", "nested", "wide", "array"]
-
     # Collect per-configuration means: (structure, size) → {rest: mean_us, grpc: mean_us}
     means = {}
 
     for proto in ("rest", "grpc"):
-        for struct in structures:
+        for struct in STRUCTURES:
             csv_path = RAW_TIME_DIR / f"{proto}_{struct}.csv"
             if not csv_path.exists():
                 print(f"[warn] {csv_path} not found, skipping", file=sys.stderr)
@@ -147,7 +161,7 @@ def aggregate_time():
 
     # Write aggregated CSV
     o3_rows = []
-    for struct in structures:
+    for struct in STRUCTURES:
         for size in PAYLOAD_SIZES:
             key = (struct, size)
             m = means.get(key, {})

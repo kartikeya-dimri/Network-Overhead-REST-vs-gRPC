@@ -18,6 +18,12 @@ type echoServer struct {
 // and serializes the response after it returns, so we cannot instrument those
 // directly. Instead we re-perform the same operations with identical data
 // and time them. At concurrency=1 with warm caches this is representative.
+//
+// The request may carry payload in any of three structure-specific fields:
+//   - entries  (flat, wide)
+//   - tree     (nested)
+//   - elements (array)
+// All populated fields are echoed back in the response.
 func (s *echoServer) Echo(ctx context.Context, req *pb.EchoRequest) (*pb.EchoResponse, error) {
 	// --- measure deserialization ---
 	// Marshal the already-decoded request back to bytes, then time Unmarshal.
@@ -33,9 +39,11 @@ func (s *echoServer) Echo(ctx context.Context, req *pb.EchoRequest) (*pb.EchoRes
 	}
 	deserNs := time.Since(t0).Nanoseconds()
 
-	// --- build response ---
+	// --- build response (echo all payload fields back) ---
 	resp := &pb.EchoResponse{
-		Payload: req.Payload,
+		Entries:  req.Entries,
+		Tree:     req.Tree,
+		Elements: req.Elements,
 	}
 
 	// --- measure serialization ---

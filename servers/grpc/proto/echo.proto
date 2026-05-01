@@ -10,11 +10,53 @@ service EchoService {
   rpc Echo (EchoRequest) returns (EchoResponse);
 }
 
-message EchoRequest {
-  bytes payload = 1;
+// ---------------------------------------------------------------------------
+// Structure-aware message types
+// Each structure maps to a native protobuf representation so that
+// protobuf can encode it compactly (field tags, length prefixes)
+// without synthetic key-path inflation.
+// ---------------------------------------------------------------------------
+
+// Entry: key-value pair for flat and wide structures.
+// Flat:  few entries with long values.
+// Wide:  many entries with short values and long keys.
+message Entry {
+  string key = 1;
+  string value = 2;
 }
 
+// TreeNode: recursive message for nested tree structures (branching factor=3).
+// Each node has a value string and zero or more children.
+// Protobuf encodes children as nested submessages with 1-2 byte field tags,
+// vs JSON which repeats "value","children" key names + braces at every node.
+message TreeNode {
+  string value = 1;
+  repeated TreeNode children = 2;
+}
+
+// ArrayElement: typed element for homogeneous array structures.
+// Protobuf encodes each element with compact varint field tags,
+// vs JSON which repeats "idx","val" key names per element.
+message ArrayElement {
+  int32 idx = 1;
+  string val = 2;
+}
+
+// EchoRequest carries a structured payload.
+// Use exactly one field based on the structure type:
+//   entries  → flat, wide
+//   tree     → nested
+//   elements → array
+message EchoRequest {
+  repeated Entry entries = 1;
+  TreeNode tree = 2;
+  repeated ArrayElement elements = 3;
+}
+
+// EchoResponse echoes the structured payload back, plus server timing.
 message EchoResponse {
-  bytes payload   = 1;
-  int64 server_ns = 2;  // deser_server + ser_server in nanoseconds
+  repeated Entry entries = 1;
+  TreeNode tree = 2;
+  repeated ArrayElement elements = 3;
+  int64 server_ns = 4;  // deser_server + ser_server in nanoseconds
 }
