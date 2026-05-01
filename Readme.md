@@ -233,6 +233,8 @@ This ensures the Space experiment observes **real encoding differences** (JSON t
 
 ### Architecture Diagram
 
+![Architecture Diagram](assets/setup.png)
+
 ```
 CLIENT MACHINE (10.10.10.1)                              SERVER MACHINE (10.10.10.2)
 ┌──────────────────────────────────────┐                 ┌────────────────────────────┐
