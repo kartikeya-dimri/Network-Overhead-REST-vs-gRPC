@@ -73,7 +73,7 @@ Network-Overhead/
 │   └── analyse_pcap.sh                  # tshark pcap → wire/header/body CSV
 │
 ├── analysis/
-│   ├── aggregate.py                      # Raw CSVs → four evaluation metrics
+│   ├── aggregate.py                      # Raw CSVs → aggregated metrics
 │   ├── plot_space.py                     # Encoding overhead + framing overhead plots
 │   ├── plot_time.py                      # Ser/deser 2×2 grid + per-structure plots
 │   └── plot_bars.py                      # Bar chart variants
@@ -84,9 +84,10 @@ Network-Overhead/
 │   │   ├── space/                        # Per-request wire/header/body bytes CSVs
 │   │   └── time/                         # Per-iteration server timing CSVs (ns)
 │   └── aggregated/
-│       ├── overhead_ratio.csv            # O1 — wire_bytes / logical_bytes
+│       ├── overhead_ratio.csv            # Total overhead — wire_bytes / logical_bytes
+│       ├── header_body_ratio.csv         # Framing overhead — wire_bytes / encoded_body_bytes
 │       ├── overhead_decomposition.csv    # Breakdown of encoding vs framing contribution
-│       └── ser_deser_overhead.csv        # Serialization/Deserialization time (ns)
+│       └── ser_deser_overhead.csv        # Ser/deser overhead — ser+deser time (ns)
 │
 ├── results_lab/                          # Final PNG plots (two-machine experiment)
 ├── results_local/                        # Final PNG plots (local testing)
@@ -205,7 +206,7 @@ The client machine runs **k6** (a Go-based load generator) that performs a param
 2. **Request dispatch** — k6 sends the request using the appropriate protocol (HTTP POST for REST, gRPC `invoke()` for gRPC).
 3. **Metric capture** — depending on the experiment:
    - **Space**: `tcpdump` captures all packets on `enp3s0` during the request; `tshark` post-processes the pcap into wire/header/body byte counts.
-   - **Time**: k6 records client-side ser/deser timestamps; the server returns its own timing via a response header (REST) or response field (gRPC).
+   - **Time**: k6 extracts and logs the server-side ser/deser timing returned via a response header (REST) or response field (gRPC).
 
 ### 5.2 Server — Minimal Echo Servers
 
@@ -258,15 +259,15 @@ CLIENT MACHINE (10.10.10.1)                              SERVER MACHINE (10.10.1
 │  │     └─► tshark → CSV           │  │
 │  │         (wire / header / body) │  │
 │  │                                │  │
-│  │  [Time] k6 timestamps (client) │  │
-│  │     + server_ns (server)       │  │
+│  │  [Time] server_ns (server)     │  │
 │  │     └─► CSV (per-request ns)   │  │
+│  │                                │  │
 │  └────────────────────────────────┘  │
 │                                      │
 │  ┌────────────────────────────────┐  │
 │  │     Post-Processing (Python)   │  │
 │  │                                │  │
-│  │  aggregate.py  → four metrics  │  │
+│  │  aggregate.py  → Metrics      │  │
 │  │  plot_space.py → PNG charts   │  │
 │  │  plot_time.py  → PNG charts   │  │
 │  └────────────────────────────────┘  │
@@ -282,7 +283,7 @@ CLIENT MACHINE (10.10.10.1)                              SERVER MACHINE (10.10.1
 |------|----------|------|---------|
 | **tcpdump** | Packet capture | Client | Captures all TCP traffic on `enp3s0` to a `.pcap` file during each Space experiment configuration. One capture per `(size, structure, protocol)` tuple. |
 | **tshark** | Pcap analysis | Client | Post-processes `.pcap` files to extract: `tcp.len` (total wire bytes), HTTP/1.1 header fields or HTTP/2 HEADERS frames (header bytes), and HTTP/2 DATA frames (body bytes). Outputs per-request CSV rows. |
-| **k6 + `time` APIs** | Ser/deser timing | Client | For REST: wraps `JSON.stringify()` and `JSON.parse()` with `Date.now()` timestamps. For gRPC: times the full `invoke()` call and subtracts server-side time to approximate client overhead. |
+| **k6** | Server timing extraction | Client | Extracts and logs the server-side time returned in the response header (REST) or response field (gRPC). Client-side ser/deser time is not measured. |
 | **Go `time.Now()` / `time.Since()`** | Server-side timing | Server | Measures deserialization + serialization time in **nanoseconds** using Go's monotonic clock. REST reports via `X-Server-Ns` response header; gRPC reports via `server_ns` response field. |
 | **Python (matplotlib, numpy)** | Aggregation & plotting | Client | `aggregate.py` computes final overhead ratios; `plot_space.py` and `plot_time.py` generate publication-ready PNG charts. |
 
@@ -292,12 +293,12 @@ CLIENT MACHINE (10.10.10.1)                              SERVER MACHINE (10.10.1
 
 ## 7. Output Metrics
 
-Four output metrics are computed:
+The evaluation uses four metrics—total overhead ratio, encoding overhead, framing overhead, and serialization/deserialization time—to separately quantify space and computational costs of communication protocols.
 
-### 1. Total Overhead Ratio (O1)
+### Total Overhead Ratio (Space)
 
 ```
-O1(x) = wire_bytes(x) / logical_payload_bytes(x)
+Total Overhead Ratio(x) = wire_bytes(x) / logical_payload_bytes(x)
 ```
 
 - **Numerator**: total TCP payload bytes on the wire (captured via tcpdump)
@@ -305,35 +306,36 @@ O1(x) = wire_bytes(x) / logical_payload_bytes(x)
 
 Captures the **combined encoding + framing overhead**. A value of 2.0 means the protocol puts 2× the logical data on the wire.
 
-### 2. Encoding Overhead
+### Encoding Overhead (Space)
 
 ```
-Encoding(x) = encoded_body_bytes(x) / logical_payload_bytes(x)
+Encoding Overhead(x) = encoded_body_bytes(x) / logical_payload_bytes(x)
 ```
 
-- **Numerator**: serialized body bytes (JSON or Protobuf)
+- **Numerator**: serialized body bytes only (excluding protocol headers)
 - **Denominator**: pre-serialization application data size
 
-Isolates the **efficiency of the data format** (JSON vs Protobuf).
+Captures the space efficiency of the serialization format (JSON vs. Protobuf).
 
-### 3. Framing Overhead
-
-```
-Framing(x) = header_bytes(x) / logical_payload_bytes(x)
-```
-
-- **Numerator**: protocol header bytes (HTTP/1.1 or HTTP/2 headers)
-- **Denominator**: pre-serialization application data size
-
-Isolates the **protocol header cost** relative to the logical data. Note that `Total Overhead (O1) = Encoding + Framing`.
-
-### 4. Serialization + Deserialization Time (Time)
+### Framing Overhead (Space)
 
 ```
-Time(x) = (ser_client + deser_client) + (deser_server + ser_server)
+Framing Overhead(x) = wire_bytes(x) / encoded_body_bytes(x)
+      = (header_bytes + body_bytes) / body_bytes
 ```
 
-Measured on separate clocks (client and server) and summed in post-processing. Unit: **nanoseconds**. First 10% of 1000 samples discarded as warm-up; mean reported per configuration.
+- **Numerator**: total wire bytes (headers + body)
+- **Denominator**: serialized body bytes only (excluding protocol headers)
+
+Captures **framing overhead only**. The difference between Total Overhead Ratio and Framing Overhead isolates encoding efficiency (JSON vs Protobuf) from header framing cost (HTTP/1.1 vs HTTP/2 HPACK).
+
+### Serialization/Deserialization Time (Time)
+
+```
+Ser/Deser Time(x) = deser_server + ser_server
+```
+
+Measured exclusively on the server side using Go's monotonic clock. Unit: **nanoseconds**. First 10% of 1000 samples discarded as warm-up; mean reported per configuration.
 
 ---
 
@@ -368,18 +370,29 @@ Files   : framing_overhead_2x2.png, framing_overhead_{flat,nested,wide,array}.pn
 ```
 Type    : 2×2 grid of line graphs, one cell per structure
 x-axis  : payload size (log scale)
-y-axis  : O1 = wire_bytes / logical_payload_bytes
+y-axis  : wire_bytes / logical_payload_bytes
 Lines   : 2 per cell — REST, gRPC
 Captures: combined encoding + framing overhead as a ratio
 File    : overhead_ratio_2x2.png
 ```
 
-### Plot 4 — Serialization/Deserialization Time (2×2 grid + individual)
+### Plot 4 — Framing Overhead vs Payload Size (2×2 grid)
+
+```
+Type    : 2×2 grid of line graphs, one cell per structure
+x-axis  : payload size (log scale)
+y-axis  : wire_bytes / encoded_body_bytes
+Lines   : 2 per cell — REST, gRPC
+Captures: framing overhead only (isolates header cost from encoding cost)
+File    : header_body_ratio_2x2.png
+```
+
+### Plot 5 — Ser/Deser Time vs Payload Size (2×2 grid + individual)
 
 ```
 Type    : 2×2 grid of line graphs, one cell per structure
 x-axis  : payload size (log scale), shared across all cells
-y-axis  : Time in microseconds, shared scale across all cells
+y-axis  : mean in microseconds, shared scale across all cells
 Lines   : 2 per cell — REST (JSON ser/deser), gRPC (Protobuf ser/deser)
 Layout  :
           ┌─────────────┬─────────────┐
