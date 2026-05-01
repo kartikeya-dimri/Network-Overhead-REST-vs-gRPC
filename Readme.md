@@ -1,5 +1,7 @@
 # Measuring Network Overhead in Space and Time — REST vs gRPC
 
+[**📄 Read the Full Paper (PDF)**](docs/Paper.pdf)
+
 ![Lab Setup](assets/lab_setup.jpeg)
 
 ## Table of Contents
@@ -105,16 +107,16 @@ The space experiment measures how many bytes land on the wire relative to the lo
 ```
 I_space = Payload × Structure × Protocol
 
-Payload   = { 32B, 64B, 128B, 512B, 1KB, 8KB, 64KB, 512KB }
+Payload   = { 32B, 64B, 128B, 512B, 1KB, 8KB }
 Structure = { flat, nested, wide, array }
 Protocol  = { REST, gRPC }
 
-|I_space|  = 8 × 4 × 2 = 64 configurations
+|I_space|  = 6 × 4 × 2 = 48 configurations
 ```
 
 | Dimension | Values | Description |
 |-----------|--------|-------------|
-| **Payload** | 32 B → 512 KB (8 sizes) | Target logical (pre-serialization) data size. The generator iteratively tunes the number/length of key-value pairs to hit each target within ~5%. |
+| **Payload** | 32 B → 8 KB (6 sizes) | Target logical (pre-serialization) data size. The generator iteratively tunes the number/length of key-value pairs to hit each target within ~5%. |
 | **Structure** | flat, nested, wide, array | Four structural patterns that exercise different serialization code-paths. |
 | **Protocol** | REST, gRPC | REST = JSON body over HTTP/1.1; gRPC = Protobuf binary over HTTP/2. |
 
@@ -134,11 +136,11 @@ The time experiment measures how long serialization and deserialization take, in
 ```
 I_time = Payload × Structure × Protocol
 
-Payload   = { 32B, 64B, 128B, 512B, 1KB, 8KB, 64KB, 512KB }
+Payload   = { 32B, 64B, 128B, 512B, 1KB, 8KB }
 Structure = { flat, nested, wide, array }
 Protocol  = { REST, gRPC }
 
-|I_time|   = 8 × 4 × 2 = 64 configurations
+|I_time|   = 6 × 4 × 2 = 48 configurations
 ```
 
 Each configuration runs for **R = 1000 requests** in a single k6 run. The first 10% of samples are discarded as warm-up, and the **mean** is reported per configuration.
