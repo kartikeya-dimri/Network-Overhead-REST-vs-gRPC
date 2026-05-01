@@ -26,7 +26,7 @@ PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 cd "$PROJECT_ROOT"
 
 # ── required env ─────────────────────────────────────────────────────
-SERVER_IP="${SERVER_IP:?Set SERVER_IP to the server machine's IP}"
+SERVER_IP="${SERVER_IP:?Set SERVER_IP to the server machines IP}"
 IFACE="${IFACE:?Set IFACE to the network interface facing the server (e.g. eth0)}"
 K6_BIN="${K6_BIN:-k6}"
 
@@ -141,9 +141,10 @@ run_space() {
       # Analyse pcap — client→server only (already filtered by tcpdump dst filter)
       # Count actual requests via http.content_length
       local body_avg
+      local awk_prog='NF { s += $1; c++ } END { if(c>0) printf "%.0f %d\n", s/c, c; else print "0 0" }'
       body_avg=$(tshark -r "$pcap_file" -Y "http.content_length" \
         -T fields -e http.content_length 2>/dev/null \
-        | tr ',' '\n' | awk 'NF { s += $1; c++ } END { if(c>0) printf "%.0f %d\n", s/c, c; else print "0 0" }')
+        | tr ',' '\n' | awk "$awk_prog")
 
       local body_bytes req_count wire_bytes header_bytes
       body_bytes=$(echo "$body_avg" | awk '{print $1}')
@@ -161,7 +162,7 @@ run_space() {
       fi
 
       echo "${size},${struct},${wire_bytes},${header_bytes},${body_bytes}" >> "$rest_csv"
-      log "    wire=${wire_bytes} header=${header_bytes} body=${body_bytes} (${req_count} reqs)"
+      log "    wire=${wire_bytes} header=${header_bytes} body=${body_bytes} [${req_count} reqs]"
     done
     log "  ✓ REST / ${struct} complete → ${rest_csv}"
   done
@@ -202,9 +203,10 @@ run_space() {
       # Analyse pcap — already filtered to client→server by tcpdump
       # HTTP/2: -d forces tshark to decode port as http2
       local body_avg
+      local awk_prog='NF { s += $1; c++ } END { if(c>0) printf "%.0f %d\n", s/c, c; else print "0 0" }'
       body_avg=$(tshark -r "$pcap_file" -d tcp.port==${GRPC_PORT},http2 \
         -T fields -e grpc.message_length 2>/dev/null \
-        | tr ',' '\n' | awk 'NF { s += $1; c++ } END { if(c>0) printf "%.0f %d\n", s/c, c; else print "0 0" }')
+        | tr ',' '\n' | awk "$awk_prog")
 
       local body_bytes req_count wire_bytes header_bytes
       body_bytes=$(echo "$body_avg" | awk '{print $1}')
@@ -222,7 +224,7 @@ run_space() {
       fi
 
       echo "${size},${struct},${wire_bytes},${header_bytes},${body_bytes}" >> "$grpc_csv"
-      log "    wire=${wire_bytes} header=${header_bytes} body=${body_bytes} (${req_count} reqs)"
+      log "    wire=${wire_bytes} header=${header_bytes} body=${body_bytes} [${req_count} reqs]"
     done
     log "  ✓ gRPC / ${struct} complete → ${grpc_csv}"
   done
@@ -258,7 +260,7 @@ run_time() {
 
       local rows
       rows=$(wc -l < "$csv_file")
-      log "  ✓ ${csv_file} (${rows} rows)"
+      log "  ✓ ${csv_file} [${rows} rows]"
     done
   done
 
