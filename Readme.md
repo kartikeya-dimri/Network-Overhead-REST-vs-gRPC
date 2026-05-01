@@ -73,7 +73,7 @@ Network-Overhead/
 │   └── analyse_pcap.sh                  # tshark pcap → wire/header/body CSV
 │
 ├── analysis/
-│   ├── aggregate.py                      # Raw CSVs → aggregated O1/O2/O3
+│   ├── aggregate.py                      # Raw CSVs → four evaluation metrics
 │   ├── plot_space.py                     # Encoding overhead + framing overhead plots
 │   ├── plot_time.py                      # Ser/deser 2×2 grid + per-structure plots
 │   └── plot_bars.py                      # Bar chart variants
@@ -85,9 +85,8 @@ Network-Overhead/
 │   │   └── time/                         # Per-iteration server timing CSVs (ns)
 │   └── aggregated/
 │       ├── overhead_ratio.csv            # O1 — wire_bytes / logical_bytes
-│       ├── header_body_ratio.csv         # O2 — wire_bytes / encoded_body_bytes
 │       ├── overhead_decomposition.csv    # Breakdown of encoding vs framing contribution
-│       └── ser_deser_overhead.csv        # O3 — ser+deser time (ns)
+│       └── ser_deser_overhead.csv        # Serialization/Deserialization time (ns)
 │
 ├── results_lab/                          # Final PNG plots (two-machine experiment)
 ├── results_local/                        # Final PNG plots (local testing)
@@ -267,7 +266,7 @@ CLIENT MACHINE (10.10.10.1)                              SERVER MACHINE (10.10.1
 │  ┌────────────────────────────────┐  │
 │  │     Post-Processing (Python)   │  │
 │  │                                │  │
-│  │  aggregate.py  → O1, O2, O3   │  │
+│  │  aggregate.py  → four metrics  │  │
 │  │  plot_space.py → PNG charts   │  │
 │  │  plot_time.py  → PNG charts   │  │
 │  └────────────────────────────────┘  │
@@ -293,9 +292,9 @@ CLIENT MACHINE (10.10.10.1)                              SERVER MACHINE (10.10.1
 
 ## 7. Output Metrics
 
-Three output metrics are computed:
+Four output metrics are computed:
 
-### O1 — Overhead Ratio (Space)
+### 1. Total Overhead Ratio (O1)
 
 ```
 O1(x) = wire_bytes(x) / logical_payload_bytes(x)
@@ -306,22 +305,32 @@ O1(x) = wire_bytes(x) / logical_payload_bytes(x)
 
 Captures the **combined encoding + framing overhead**. A value of 2.0 means the protocol puts 2× the logical data on the wire.
 
-### O2 — Header+Body:Body Ratio (Space)
+### 2. Encoding Overhead
 
 ```
-O2(x) = wire_bytes(x) / encoded_body_bytes(x)
-      = (header_bytes + body_bytes) / body_bytes
+Encoding(x) = encoded_body_bytes(x) / logical_payload_bytes(x)
 ```
 
-- **Numerator**: total wire bytes (headers + body)
-- **Denominator**: serialized body bytes only (excluding protocol headers)
+- **Numerator**: serialized body bytes (JSON or Protobuf)
+- **Denominator**: pre-serialization application data size
 
-Captures **framing overhead only**. The difference between O1 and O2 isolates encoding efficiency (JSON vs Protobuf) from header framing cost (HTTP/1.1 vs HTTP/2 HPACK).
+Isolates the **efficiency of the data format** (JSON vs Protobuf).
 
-### O3 — Serialization + Deserialization Time (Time)
+### 3. Framing Overhead
 
 ```
-O3(x) = (ser_client + deser_client) + (deser_server + ser_server)
+Framing(x) = header_bytes(x) / logical_payload_bytes(x)
+```
+
+- **Numerator**: protocol header bytes (HTTP/1.1 or HTTP/2 headers)
+- **Denominator**: pre-serialization application data size
+
+Isolates the **protocol header cost** relative to the logical data. Note that `Total Overhead (O1) = Encoding + Framing`.
+
+### 4. Serialization + Deserialization Time (Time)
+
+```
+Time(x) = (ser_client + deser_client) + (deser_server + ser_server)
 ```
 
 Measured on separate clocks (client and server) and summed in post-processing. Unit: **nanoseconds**. First 10% of 1000 samples discarded as warm-up; mean reported per configuration.
@@ -365,23 +374,12 @@ Captures: combined encoding + framing overhead as a ratio
 File    : overhead_ratio_2x2.png
 ```
 
-### Plot 4 — Header+Body:Body Ratio vs Payload Size (2×2 grid)
-
-```
-Type    : 2×2 grid of line graphs, one cell per structure
-x-axis  : payload size (log scale)
-y-axis  : O2 = wire_bytes / encoded_body_bytes
-Lines   : 2 per cell — REST, gRPC
-Captures: framing overhead only (isolates header cost from encoding cost)
-File    : header_body_ratio_2x2.png
-```
-
-### Plot 5 — Ser/Deser Time vs Payload Size (2×2 grid + individual)
+### Plot 4 — Serialization/Deserialization Time (2×2 grid + individual)
 
 ```
 Type    : 2×2 grid of line graphs, one cell per structure
 x-axis  : payload size (log scale), shared across all cells
-y-axis  : O3_mean in microseconds, shared scale across all cells
+y-axis  : Time in microseconds, shared scale across all cells
 Lines   : 2 per cell — REST (JSON ser/deser), gRPC (Protobuf ser/deser)
 Layout  :
           ┌─────────────┬─────────────┐
