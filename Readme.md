@@ -19,9 +19,12 @@
   - [5.1 Client — k6 Sweep & Metric Collection](#51-client--k6-sweep--metric-collection)
   - [5.2 Server — Minimal Echo Servers](#52-server--minimal-echo-servers)
   - [5.3 Native Encoding per Protocol](#53-native-encoding-per-protocol)
-- [6. Measurement Tools](#6-measurement-tools)
-- [7. Output Metrics](#7-output-metrics)
-- [8. Plots](#8-plots)
+- [6. Running the Experiments](#6-running-the-experiments)
+  - [6.1 Prerequisites](#61-prerequisites)
+  - [6.2 Two-Machine Lab Run](#62-two-machine-lab-run)
+  - [6.3 Local Test (Single Machine / macOS)](#63-local-test-single-machine--macos)
+  - [6.4 Analysis Only](#64-analysis-only)
+  - [6.5 Output Locations](#65-output-locations)
 
 ---
 
@@ -277,132 +280,108 @@ CLIENT MACHINE (10.10.10.1)                              SERVER MACHINE (10.10.1
 
 ---
 
-## 6. Measurement Tools
+## 6. Running the Experiments
 
-| Tool | Used For | Side | Details |
-|------|----------|------|---------|
-| **tcpdump** | Packet capture | Client | Captures all TCP traffic on `enp3s0` to a `.pcap` file during each Space experiment configuration. One capture per `(size, structure, protocol)` tuple. |
-| **tshark** | Pcap analysis | Client | Post-processes `.pcap` files to extract: `tcp.len` (total wire bytes), HTTP/1.1 header fields or HTTP/2 HEADERS frames (header bytes), and HTTP/2 DATA frames (body bytes). Outputs per-request CSV rows. |
-| **k6** | Server timing extraction | Client | Extracts and logs the server-side time returned in the response header (REST) or response field (gRPC). Client-side ser/deser time is not measured. |
-| **Go `time.Now()` / `time.Since()`** | Server-side timing | Server | Measures deserialization + serialization time in **nanoseconds** using Go's monotonic clock. REST reports via `X-Server-Ns` response header; gRPC reports via `server_ns` response field. |
-| **Python (matplotlib, numpy)** | Aggregation & plotting | Client | `aggregate.py` computes final overhead ratios; `plot_space.py` and `plot_time.py` generate publication-ready PNG charts. |
+### 6.1 Prerequisites
 
-**Note on determinism**: For Space experiments, a single tcpdump capture per configuration is sufficient — wire bytes are fully deterministic on a dedicated point-to-point ethernet link with no competing traffic. For Time experiments, 1000 request samples per configuration provide ample statistical coverage; variance at c=1 on an isolated machine is negligible.
+Install the following tools on the **client machine** (or the single machine for local tests):
 
----
+| Tool | Purpose | Install |
+|------|---------|---------|
+| **Go** ≥ 1.22 | Build the echo servers | [go.dev/dl](https://go.dev/dl/) |
+| **k6** ≥ v0.50 | Load generation & parameter sweeps | [k6.io/docs/get-started/installation](https://k6.io/docs/get-started/installation/) |
+| **tcpdump** | Packet capture (Space experiment) | `apt install tcpdump` / pre-installed on macOS |
+| **tshark** (Wireshark CLI) | Pcap → wire/header/body byte analysis | `apt install tshark` / `brew install wireshark` |
+| **Python 3** + matplotlib, numpy | Aggregation & plot generation | `pip3 install matplotlib numpy` |
 
-## 7. Output Metrics
+On the **server machine** (two-machine setup only), you need **Go** to build the servers.
 
-The evaluation uses four metrics—total overhead ratio, encoding overhead, framing overhead, and serialization/deserialization time—to separately quantify space and computational costs of communication protocols.
+### 6.2 Two-Machine Lab Run
 
-### Total Overhead Ratio (Space)
+This is the primary experiment mode. The client machine runs k6 + tcpdump; the server machine runs the Go echo servers.
 
-```
-Total Overhead Ratio(x) = wire_bytes(x) / logical_payload_bytes(x)
-```
+**Step 1 — Build and start servers on the server machine:**
 
-- **Numerator**: total TCP payload bytes on the wire (captured via tcpdump)
-- **Denominator**: pre-serialization application data size
+```bash
+cd Network-Overhead
+go build -o rest-server ./servers/rest/
+go build -o grpc-server ./servers/grpc/
 
-Captures the **combined encoding + framing overhead**. A value of 2.0 means the protocol puts 2× the logical data on the wire.
-
-### Encoding Overhead (Space)
-
-```
-Encoding Overhead(x) = encoded_body_bytes(x) / logical_payload_bytes(x)
+# Start both servers (in separate terminals or backgrounded)
+./rest-server &    # listens on :8080
+./grpc-server &    # listens on :50051
 ```
 
-- **Numerator**: serialized body bytes only (excluding protocol headers)
-- **Denominator**: pre-serialization application data size
+**Step 2 — Run experiments from the client machine:**
 
-Captures the space efficiency of the serialization format (JSON vs. Protobuf).
+```bash
+# Set required environment variables
+export SERVER_IP=10.10.10.2          # IP of the server machine
+export IFACE=enp3s0                  # network interface facing the server
 
-### Framing Overhead (Space)
+# Run everything: space + time experiments, then aggregation & plots
+./scripts/run_experiment.sh all
 
-```
-Framing Overhead(x) = wire_bytes(x) / encoded_body_bytes(x)
-      = (header_bytes + body_bytes) / body_bytes
-```
-
-- **Numerator**: total wire bytes (headers + body)
-- **Denominator**: serialized body bytes only (excluding protocol headers)
-
-Captures **framing overhead only**. The difference between Total Overhead Ratio and Framing Overhead isolates encoding efficiency (JSON vs Protobuf) from header framing cost (HTTP/1.1 vs HTTP/2 HPACK).
-
-### Serialization/Deserialization Time (Time)
-
-```
-Ser/Deser Time(x) = deser_server + ser_server
+# Or run individual stages:
+./scripts/run_experiment.sh space      # space experiment only (+ analysis)
+./scripts/run_experiment.sh time       # time experiment only  (+ analysis)
+./scripts/run_experiment.sh analysis   # aggregation + plotting only
 ```
 
-Measured exclusively on the server side using Go's monotonic clock. Unit: **nanoseconds**. First 10% of 1000 samples discarded as warm-up; mean reported per configuration.
+| Environment Variable | Required | Default | Description |
+|---------------------|----------|---------|-------------|
+| `SERVER_IP` | **Yes** | — | IP address of the server machine |
+| `IFACE` | **Yes** | — | Network interface facing the server (e.g. `eth0`, `enp3s0`) |
+| `K6_BIN` | No | `k6` | Path to the k6 binary |
 
----
+> **Note:** The space experiment requires `sudo` for tcpdump. The script will prompt for your password once and keep credentials alive for the duration of the run.
 
-## 8. Plots
+### 6.3 Local Test (Single Machine / macOS)
 
-The following plots are generated from the experiment data:
+For quick sanity checks without a two-machine setup. Runs everything locally on the loopback interface (`lo0` on macOS).
 
-### Plot 1 — Encoding Overhead (2×2 grid + individual)
+```bash
+cd Network-Overhead
 
-```
-Type    : 2×2 grid of line graphs, one cell per structure
-x-axis  : payload size (log scale)
-y-axis  : encoded body bytes
-Lines   : 2 per cell — REST (JSON), gRPC (Protobuf)
-Captures: encoding efficiency — how compactly each format represents the same data
-Files   : encoding_overhead_2x2.png, encoding_overhead_{flat,nested,wide,array}.png
-```
+# Run all experiments (space + time + analysis)
+./scripts/local_test.sh
 
-### Plot 2 — Framing Overhead (2×2 grid + individual)
-
-```
-Type    : 2×2 grid of line graphs, one cell per structure
-x-axis  : payload size (log scale)
-y-axis  : header bytes
-Lines   : 2 per cell — REST (HTTP/1.1), gRPC (HTTP/2 HPACK)
-Captures: protocol header cost — HTTP/1.1 text headers vs HTTP/2 compressed frames
-Files   : framing_overhead_2x2.png, framing_overhead_{flat,nested,wide,array}.png
+# Or run individual stages:
+./scripts/local_test.sh space     # space experiment only
+./scripts/local_test.sh time      # time experiment only
 ```
 
-### Plot 3 — Overhead Ratio vs Payload Size (2×2 grid)
+The local test script automatically:
+- Builds both Go servers (`rest-server`, `grpc-server`)
+- Starts and stops servers as needed
+- Uses `lo0` (loopback) for tcpdump captures
+- Runs 20 iterations per config for time (vs 1000 in lab) and 100 for space
+- Cleans up server processes on exit
 
-```
-Type    : 2×2 grid of line graphs, one cell per structure
-x-axis  : payload size (log scale)
-y-axis  : wire_bytes / logical_payload_bytes
-Lines   : 2 per cell — REST, gRPC
-Captures: combined encoding + framing overhead as a ratio
-File    : overhead_ratio_2x2.png
-```
+### 6.4 Analysis Only
 
-### Plot 4 — Framing Overhead vs Payload Size (2×2 grid)
+If you already have raw CSVs and pcaps and just want to re-run aggregation and plotting:
 
-```
-Type    : 2×2 grid of line graphs, one cell per structure
-x-axis  : payload size (log scale)
-y-axis  : wire_bytes / encoded_body_bytes
-Lines   : 2 per cell — REST, gRPC
-Captures: framing overhead only (isolates header cost from encoding cost)
-File    : header_body_ratio_2x2.png
+```bash
+./scripts/run_experiment.sh analysis
 ```
 
-### Plot 5 — Ser/Deser Time vs Payload Size (2×2 grid + individual)
+This runs:
+1. `analysis/aggregate.py` — raw CSVs → aggregated overhead metrics
+2. `analysis/plot_space.py` — encoding & framing overhead charts
+3. `analysis/plot_time.py` — ser/deser timing charts
+4. `analysis/plot_bars.py` — bar chart variants
 
-```
-Type    : 2×2 grid of line graphs, one cell per structure
-x-axis  : payload size (log scale), shared across all cells
-y-axis  : mean in microseconds, shared scale across all cells
-Lines   : 2 per cell — REST (JSON ser/deser), gRPC (Protobuf ser/deser)
-Layout  :
-          ┌─────────────┬─────────────┐
-          │    Flat      │   Nested    │
-          ├─────────────┼─────────────┤
-          │    Wide      │    Array    │
-          └─────────────┴─────────────┘
-Captures: serialization/deserialization cost by structure type and protocol
-Files   : ser_deser_2x2_grid.png, ser_deser_vs_payload_{flat,nested,wide,array}.png
-```
+### 6.5 Output Locations
+
+| Output | Path |
+|--------|------|
+| Raw space CSVs | `metrics/raw/space/*.csv` |
+| Raw time CSVs | `metrics/raw/time/*.csv` |
+| Packet captures | `metrics/raw/pcaps/*.pcap` |
+| Aggregated metrics | `metrics/aggregated/*.csv` |
+| Plots (lab run) | `results_lab/*.png` |
+| Plots (local test) | `results_local/*.png` |
 
 ---
 
