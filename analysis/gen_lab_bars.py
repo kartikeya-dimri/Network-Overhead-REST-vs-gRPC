@@ -17,7 +17,7 @@ SIZES = [32, 64, 128, 512, 1024, 8192]
 SIZE_LABELS = ["32 B", "64 B", "128 B", "512 B", "1 KB", "8 KB"]
 
 # ── Muted, professional palette (Excel-like) ─────────────────────────
-REST_COLOR = "#4682B4"   # steel blue
+REST_COLOR = "#04A7F2"   # steel blue
 GRPC_COLOR = "#7EAB53"   # sampled green
 BAR_WIDTH = 0.30
 DPI = 200
