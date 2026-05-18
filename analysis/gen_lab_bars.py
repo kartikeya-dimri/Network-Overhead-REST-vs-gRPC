@@ -17,8 +17,8 @@ SIZES = [32, 64, 128, 512, 1024, 8192]
 SIZE_LABELS = ["32 B", "64 B", "128 B", "512 B", "1 KB", "8 KB"]
 
 # ── Muted, professional palette (Excel-like) ─────────────────────────
-REST_COLOR = "#4472C4"   # steel blue
-GRPC_COLOR = "#ED7D31"   # warm orange
+REST_COLOR = "#4682B4"   # steel blue
+GRPC_COLOR = "#7EAB53"   # sampled green
 BAR_WIDTH = 0.30
 DPI = 200
 
@@ -100,7 +100,7 @@ def draw_bar_2x2(data, ylabel, val_fmt, out_name, baseline=None, ylim=None):
             bbox=[0.0, -0.28, 1.0, 0.18],
         )
         table.auto_set_font_size(False)
-        table.set_fontsize(10)
+        table.set_fontsize(14)
         # Style row labels white text
         for (row, col), cell in table.get_celld().items():
             cell.set_edgecolor("#D0D0D0")
@@ -159,7 +159,7 @@ def draw_line_2x2(data, ylabel, val_fmt, out_name,
             bbox=[0.0, -0.32, 1.0, 0.18],
         )
         table.auto_set_font_size(False)
-        table.set_fontsize(10)
+        table.set_fontsize(14)
         for (row, col), cell in table.get_celld().items():
             cell.set_edgecolor("#D0D0D0")
             cell.set_linewidth(0.5)
